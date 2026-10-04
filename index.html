@@ -368,7 +368,7 @@
 
 <script>
   // Cấu hình URL Google Apps Script
-  const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwXOyuiYzUdd7cpLfGcGOwYskb42oC7SygTLLx5iPrwUMbkQPBDZU1fY0J-A1-r0sx1/exec";
+  const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxo28bviq6a3sH4Wx3C_PwBH-lOA6kQmvVenPVYrWMOe-yAnxOY58zydeQUtYcatNBf/exec";
 
   let currentUser = {}, questions = [], answers = {}, currentQIndex = 0, tabSwitchCount = 0;
   let timeLeft = 20 * 60;
@@ -603,19 +603,10 @@
       <i class="fa-solid fa-circle-info"></i> Trạng thái: <i>${note}</i>
     `;
 
-    // Đồng bộ điểm lên Google Sheets (sử dụng no-cors và xử lý an toàn)
+    // Gửi điểm lên Google Sheets qua GET action=submit
     try {
-      await fetch(SCRIPT_URL, {
-        method: "POST",
-        mode: "no-cors",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          username: currentUser.username,
-          fullname: currentUser.name,
-          score: score,
-          note: note
-        })
-      });
+      const saveUrl = `${SCRIPT_URL}?action=submit&username=${encodeURIComponent(currentUser.username)}&fullname=${encodeURIComponent(currentUser.name)}&score=${encodeURIComponent(score)}&note=${encodeURIComponent(note)}`;
+      await fetch(saveUrl);
     } catch (e) {
       console.error("Lỗi đồng bộ kết quả:", e);
     }
