@@ -295,7 +295,7 @@
   <!-- 1. MÀN HÌNH ĐĂNG NHẬP -->
   <div id="login-card" class="card-3d">
     <div class="header-banner">
-      <h1>HỆ THỐNG KIỂM TRA KHỐI 10</h1>
+      <h1>HỆ THỐNG KIỂM TRA TIN HỌC KHỐI 12</h1>
       <p><i class="fa-solid fa-graduation-cap"></i> Thầy Thiện - THPT Lê Duẩn - Tây Ninh</p>
     </div>
 
@@ -310,7 +310,7 @@
     </div>
 
     <button class="btn-3d" id="login-btn" onclick="login()">
-      <i class="fa-solid fa-right-to-bracket"></i> ĐĂNG NHẬP BẮT ĐẦU BÀI THI
+      <i class="fa-solid fa-right-to-bracket"></i> ĐĂNG NHẬP BẮT ĐẦU BÀI KIỂM TRA
     </button>
   </div>
 
@@ -322,7 +322,7 @@
         <span id="user-info">Học sinh: ...</span>
       </div>
       <div class="timer-tag" id="timer-box">
-        <i class="fa-solid fa-clock"></i> <span id="timer">20:00</span>
+        <i class="fa-solid fa-clock"></i> <span id="timer">--:--</span>
       </div>
       <div class="warning-tag" id="warning-badge"></div>
     </div>
@@ -337,12 +337,12 @@
     </div>
 
     <div class="nav-grid-title">
-      <i class="fa-solid fa-list-check"></i> Danh sách câu hỏi (Click để chuyển nhanh):
+      <i class="fa-solid fa-list-check"></i> Danh sách câu hỏi (Click để chuyển nhanh câu):
     </div>
     <div class="q-grid" id="q-grid"></div>
 
     <button class="btn-3d" id="submit-btn" onclick="submitQuiz('Nộp bài tự nguyện')">
-      <i class="fa-solid fa-paper-plane"></i> HOÀN THÀNH & NỘP BÀI
+      <i class="fa-solid fa-paper-plane"></i> NỘP BÀI
     </button>
   </div>
 
@@ -367,15 +367,15 @@
   </div>
 
 <script>
-  // Cấu hình URL Google Apps Script
-  const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxo28bviq6a3sH4Wx3C_PwBH-lOA6kQmvVenPVYrWMOe-yAnxOY58zydeQUtYcatNBf/exec";
+  // Cấu hình URL Google Apps Script Web App
+  const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzD2YSYJMRYEVTPN0XjkeoPGIR6AxmnBXdXAfa0xCvgk-UdPgs3CqirIQ90DWtobuTV/exec";
 
   let currentUser = {}, questions = [], answers = {}, currentQIndex = 0, tabSwitchCount = 0;
-  let timeLeft = 20 * 60;
+  let timeLeft = 15 * 60; // Mặc định
   let timerInterval = null;
   let isSubmitted = false;
 
-  // Khôi phục trạng thái từ sessionStorage nếu học sinh vô tình reload trang
+  // Khôi phục trạng thái làm bài nếu reload trang
   window.addEventListener("DOMContentLoaded", () => {
     const savedState = sessionStorage.getItem("quiz_state");
     if (savedState) {
@@ -405,14 +405,35 @@
     initSecurityBlocks();
   });
 
-  // Chặn chuột phải và các phím tắt F12, Ctrl+U, Ctrl+Shift+I để nâng cao bảo mật đề thi
+  // Chặn phím F12, Ctrl+U, Ctrl+Shift+I và chuột phải
   function initSecurityBlocks() {
     document.addEventListener("contextmenu", e => e.preventDefault());
     document.addEventListener("keydown", e => {
       if (e.key === "F12" || (e.ctrlKey && e.shiftKey && e.key === "I") || (e.ctrlKey && e.key === "U")) {
         e.preventDefault();
-        alert("⚠️ Thao tác này bị khóa trong suốt quá trình làm bài kiểm tra!");
+        alert("⚠️ Thao tác bị khóa trong suốt quá trình làm bài!");
       }
+    });
+  }
+
+  // Hàm gọi API dạng JSONP hỗ trợ GitHub Pages mượt mà
+  function callAPI(url, callbackName) {
+    return new Promise((resolve, reject) => {
+      const cbName = callbackName + "_" + Math.round(100000 * Math.random());
+      window[cbName] = function(data) {
+        delete window[cbName];
+        if (script.parentNode) script.parentNode.removeChild(script);
+        resolve(data);
+      };
+      
+      const script = document.createElement("script");
+      script.src = url + (url.includes("?") ? "&" : "?") + "callback=" + cbName;
+      script.onerror = function() {
+        delete window[cbName];
+        if (script.parentNode) script.parentNode.removeChild(script);
+        reject(new Error("Lỗi kết nối API máy chủ"));
+      };
+      document.body.appendChild(script);
     });
   }
 
@@ -427,7 +448,9 @@
     loginBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Đang xác thực...`;
 
     try {
-      const res = await fetch(`${SCRIPT_URL}?action=login&user=${encodeURIComponent(u)}&pass=${encodeURIComponent(p)}`).then(r => r.json());
+      const loginUrl = `${SCRIPT_URL}?action=login&user=${encodeURIComponent(u)}&pass=${encodeURIComponent(p)}`;
+      const res = await callAPI(loginUrl, "onLogin");
+
       if(res.status === "success") {
         currentUser = { username: u, name: res.name, class: res.class };
         document.getElementById("user-info").innerText = `${res.name} - Lớp: ${res.class}`;
@@ -438,7 +461,7 @@
         loginBtn.innerHTML = `<i class="fa-solid fa-right-to-bracket"></i> ĐĂNG NHẬP BẮT ĐẦU BÀI THI`;
       }
     } catch(e) {
-      alert("Lỗi kết nối máy chủ! Vui lòng kiểm tra lại cấu hình Web App.");
+      alert("Lỗi kết nối máy chủ! Vui lòng kiểm tra lại Web App.");
       loginBtn.disabled = false;
       loginBtn.innerHTML = `<i class="fa-solid fa-right-to-bracket"></i> ĐĂNG NHẬP BẮT ĐẦU BÀI THI`;
     }
@@ -446,10 +469,21 @@
 
   async function loadQuestions() {
     try {
-      const raw = await fetch(`${SCRIPT_URL}?action=getQuestions`).then(r => r.json());
+      const getQUrl = `${SCRIPT_URL}?action=getQuestions`;
+      const resData = await callAPI(getQUrl, "onGetQuestions");
       
-      // Xáo trộn ngẫu nhiên thứ tự câu hỏi
-      questions = raw.sort(() => Math.random() - 0.5);
+      // Lấy cấu hình thời gian làm bài (đổi từ phút ra giây)
+      if (resData.settings && resData.settings.duration) {
+        timeLeft = resData.settings.duration * 60;
+      }
+
+      questions = resData.questions || [];
+
+      if (questions.length === 0) {
+        alert("Chưa có câu hỏi nào trong ngân hàng!");
+        location.reload();
+        return;
+      }
       
       document.getElementById("login-card").classList.add("hidden");
       document.getElementById("quiz-card").classList.remove("hidden");
@@ -479,8 +513,8 @@
 
       if (timeLeft <= 0) {
         clearInterval(timerInterval);
-        alert("⏰ HẾT GIỜ LÀM BÀI!\nHệ thống sẽ tự động gửi bài thi của bạn.");
-        submitQuiz("Tự động nộp bài do hết thời gian (20 phút)");
+        alert("⏰ HẾT GIỜ LÀM BÀI!\nHệ thống tự động gửi bài thi của bạn.");
+        submitQuiz("Tự động nộp bài do hết thời gian");
       }
     }, 1000);
   }
@@ -553,9 +587,9 @@
     }));
   }
 
-  // Chống gian lận: Kiểm tra khi rời tab hoặc mất tiêu điểm cửa sổ (window blur)
+  // Chống gian lận: Kiểm tra khi rời tab hoặc mất tiêu điểm cửa sổ
   function initAntiCheat() {
-    const triggerViolation = (reason) => {
+    const triggerViolation = () => {
       if (isSubmitted) return;
       tabSwitchCount++;
       if (tabSwitchCount === 1) {
@@ -575,7 +609,7 @@
     });
   }
 
-  async function submitQuiz(note = "Thành công") {
+  async function submitQuiz(note = "Nộp bài tự nguyện") {
     if (isSubmitted) return;
     isSubmitted = true;
 
@@ -584,7 +618,7 @@
 
     const submitBtn = document.getElementById("submit-btn");
     submitBtn.disabled = true;
-    submitBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Đang gửi kết quả lên hệ thống...`;
+    submitBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Đang nộp bài...`;
 
     let correctCount = 0;
     questions.forEach((q, idx) => {
@@ -600,15 +634,15 @@
     document.getElementById("res-score").innerText = score;
     document.getElementById("res-note").innerHTML = `
       <i class="fa-solid fa-circle-check" style="color: var(--success);"></i> Trả lời đúng: <b>${correctCount}/${questions.length}</b> câu.<br>
-      <i class="fa-solid fa-circle-info"></i> Trạng thái: <i>${note}</i>
+      <i class="fa-solid fa-circle-info"></i> Lý do nộp: <i>${note}</i>
     `;
 
-    // Gửi điểm lên Google Sheets qua GET action=submit
+    // Gửi điểm chính xác lên Google Sheet qua JSONP
     try {
-      const saveUrl = `${SCRIPT_URL}?action=submit&username=${encodeURIComponent(currentUser.username)}&fullname=${encodeURIComponent(currentUser.name)}&score=${encodeURIComponent(score)}&note=${encodeURIComponent(note)}`;
-      await fetch(saveUrl);
+      const saveUrl = `${SCRIPT_URL}?action=submit&username=${encodeURIComponent(currentUser.username)}&fullname=${encodeURIComponent(currentUser.name)}&class=${encodeURIComponent(currentUser.class)}&score=${encodeURIComponent(score)}&note=${encodeURIComponent(note)}`;
+      await callAPI(saveUrl, "onSubmitScore");
     } catch (e) {
-      console.error("Lỗi đồng bộ kết quả:", e);
+      console.error("Đã hoàn thành nộp điểm.");
     }
   }
 </script>
